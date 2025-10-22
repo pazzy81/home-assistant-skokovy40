@@ -14,6 +14,22 @@
       attributes: # zde si mohu nadefinovat cokoliv chci s jakýmkoliv kódem i hodnotou
         labels: "pazzy_energy_export_price, pazzy_settings"
         source: "sensor.current_sell_electricity_price"
+
+
+
+
+
+        
     - name: "Pazzy - TEST TEST SMAZAT"
+      unique_id: pazzy_test_test_smazat
       state: >
-        {{ states('sensor.Pazzy')}}
+        2
+    - name: "Ahoj SMAZAT"
+      unique_id: ahoj_smazat
+      state: >
+        3
+    - name: "Test333 Smazat"
+      unique_id: test333smazat
+      state: >
+        {{ states('sensor.pazzy_energy_export_price) | float
+        }}
