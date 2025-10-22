@@ -1,0 +1,65 @@
+-----
+Tahák
+
+-----
+Použití uvozovek a víceřádkových výrazů v YAML
+
+101 Jednoduché uvozovky: '...' – Všechno uvnitř se bere doslova
+– Nelze používat escape znaky (\n pro Enter, \t pro Tabelátor)
+– Hodí se, když uvnitř potřebuješ dvojité uvozovky
+Příklad: name: 'Senzor "Pazzy"'
+
+102 Dvojité uvozovky: "..." 
+– Umožňují escape znaky (\n, \t, ")
+– Nutné, pokud uvnitř používáš jednoduché uvozovky
+Příklad: availability: "{{ states('sensor.xyz') != 'unavailable' }}"
+
+103 Víceřádkový zápis: > 
+– Spojí všechny řádky do jednoho (odřádkování → mezera)
+– Ideální pro dlouhé Jinja výrazy
+- Není třeba již dávat Jinja výrazy do uvozovek
+Příklad: state: > 
+            {{ states('sensor.xyz') 
+                | float | round(0) }}
+
+104 Víceřádkový zápis se zachováním řádků: |
+– Zachová odřádkování (každý řádek zůstane)
+– Hodí se pro texty, ne pro Jinja výrazy
+Příklad:
+    state: |
+        řádek 1
+        řádek 2
+        řádek 3
+
+Doporučení: 
+– U Jinja výrazů používej vždy "..." nebo >
+– Nepiš Jinja do '...' – nebude se vyhodnocovat
+– Pokud máš problém s parserem, zkontroluj kolizi uvozovek
+
+
+-----
+Použití device_class a state_class v senzorech
+
+105 Přehled device_class pro senzory v HA
+device_class        | Použití / jednotky
+temperature         | Teplota (°C, °F)
+humidity            | Relativní vlhkost (%)
+pressure            | Tlak (hPa, mbar)
+energy              | Energie (Wh, kWh, MWh)
+power               | Okamžitý výkon (W, kW)
+current             | Elektrický proud (A)
+voltage             | Napětí (V)
+monetary            | Peněžní hodnota (Kč, €, $)
+carbon_dioxide      | CO₂ koncentrace (ppm)
+volatile_organic... | TVOC (ppb)
+timestamp           | Datum/čas
+speed               | Rychlost (m/s, km/h)
+
+106 Přehled state_class pro senzory v HA
+state_class         | Použití
+measurement         | Okamžitá měřená hodnota (teplota, výkon)
+total               | Celková hodnota, může se resetovat (denní spotřeba)
+total_increasing    | Hodnota, která jen roste (elektroměr, vodoměr)
+
+
+-----

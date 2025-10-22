@@ -1,0 +1,19 @@
+- sensor:
+    - name: "Pazzy - Energy Export Price - Current Price - TEST YAML"
+      unique_id: pazzy_energyexportprice_currentprice_TEST_YAML
+      state: >
+        {{ states('sensor.current_sell_electricity_price')
+        | float | round(0) | int 
+        }}
+      unit_of_measurement: "Kč / MWh"
+      icon: mdi:cash-100
+      #state_class: measurement
+      device_class: monetary
+      availability: >
+        {{ states('sensor.current_sell_electricity_price') not in ['unknown','unavailable','none'] }}
+      attributes: # zde si mohu nadefinovat cokoliv chci s jakýmkoliv kódem i hodnotou
+        labels: "pazzy_energy_export_price, pazzy_settings"
+        source: "sensor.current_sell_electricity_price"
+    - name: "Pazzy - TEST TEST SMAZAT"
+      state: >
+        {{ states('sensor.Pazzy')}}
