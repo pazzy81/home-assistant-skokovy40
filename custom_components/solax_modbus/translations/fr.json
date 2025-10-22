@@ -1,0 +1,89 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Define your inverter modbus-connection",
+        "data": {
+          "name": "The prefix to be used for your inverter sensors",
+          "read_modbus_addr": "L'adresse Modbus de l'onduleur",
+          "interface": "Interface",
+          "inverter_power_kw": "Puissance max onduleur KW (ignore les valeurs plus grande que ça)",
+          "read_eps": "Emergency Power Option (EPS)",
+          "read_dcb": "Dry Contact Box (SolaX Hybrid Gen4 & Gen5)",
+          "read_pm": "Mode paralléle (Primaire-Secondaire)",
+          "plugin": "Selectionnez le type d'onduleur",
+          "scan_interval": "The polling interval of the modbus registers in seconds",
+          "scan_interval_medium": "Medium polling interval",
+          "scan_interval_fast": "Fast polling interval",
+          "time_out" : "Modbus délai d'attente en secondes"
+        }
+      },
+      "serial": {
+        "title": "Paramètres de l'interface Série",
+        "data": {
+          "read_serial_port": "Nom du port série",
+          "baudrate": "Baudrate"
+        }
+      },
+      "tcp": {
+        "title": "Paramètres TCP/IP",
+        "data": {
+          "host": "The IP-address of your Inverter or Modbus Interface",
+          "port": "The TCP port on which to connect to the inverter",
+          "tcp_type": "The Modbus TCP variant"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Le périphérique est déjà configuré",
+      "name_already_used": "Le nom est déjà utilisé ou est invalide",
+      "invalid_host": "L'adresse IP de l'hôte est invalide"
+    },
+    "abort": {
+      "already_configured": "Le périphérique est déjà configuré"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Define your inverter modbus-connection",
+        "data": {
+          "name": "The prefix to be used for your inverter sensors",
+          "read_modbus_addr": "L'adresse Modbus de l'onduleur",
+          "interface": "Interface",
+          "inverter_power_kw": "Puissance max onduleur (ignore les valeurs plus grande que ça)",
+          "read_eps": "Emergency Power Option (EPS)",
+          "read_dcb": "Dry Contact Box (SolaX Hybrid Gen4 & Gen5)",
+          "read_pm": "Mode paralléle (Primaire-Secondaire)",
+          "plugin": "Selectionnez le type d'onduleur",
+          "scan_interval": "The polling interval of the modbus registers in seconds",
+          "scan_interval_medium": "Medium polling interval",
+          "scan_interval_fast": "Fast polling interval",
+          "time_out" : "Modbus délai d'attente en secondes"
+        }
+      },
+      "serial": {
+        "title": "Paramètres de l'interface Série",
+        "data": {
+          "read_serial_port": "Nom du port série",
+          "baudrate": "Baudrate"
+        }
+      },
+      "tcp": {
+        "title": "Paramètres TCP/IP",
+        "data": {
+          "host": "The IP-address of your Inverter or Modbus Interface",
+          "port": "The TCP port on which to connect to the inverter"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Le périphérique est déjà configuré",
+      "name_already_used": "Le nom est déjà utilisé ou est invalide",
+      "invalid_host": "L'adresse IP de l'hôte est invalide"
+    },
+    "abort": {
+      "already_configured": "Le périphérique est déjà configuré"
+    }
+  }
+}

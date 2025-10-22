@@ -1,0 +1,105 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Define your inverter modbus-connection",
+        "data": {
+          "name": "The prefix to be used for your inverter sensors",
+          "read_modbus_addr": "The modbus address of the Inverter",
+          "interface" : "Interface",
+          "inverter_name_suffix": "Name suffix for the inverter",
+          "inverter_power_kw": "Max inverter power KW (value greater than that are ignored)",
+          "read_eps": "Emergency Power Option (EPS)",
+          "read_dcb": "Dry Contact Box (SolaX Hybrid Gen4 & Gen5)",
+          "read_pm": "Parallel Mode (Master-Slave)",
+          "plugin": "Select Inverter Type",
+          "scan_interval": "The default polling interval of the modbus registers in seconds",
+          "scan_interval_medium": "Medium polling interval",
+          "scan_interval_fast": "Fast polling interval",
+          "time_out" : "Timeout in seconds"
+        }
+      },
+      "serial": {
+        "title": "Serial Interface Parameters",
+        "data": {
+          "read_serial_port": "Serial port name",
+          "baudrate": "Baudrate"
+        }
+      },
+      "tcp": {
+        "title": "TCP/IP Parameters",
+        "data": {
+          "host": "The IP-address of your Inverter or Modbus Interface",
+          "port": "The TCP port on which to connect to the inverter",
+          "tcp_type": "The Modbus TCP variant"
+        }
+      },
+      "battery": {
+        "title": "Read out battery modules",
+        "data": {
+          "read_battery": "Enable readout"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Device is already configured",
+      "name_already_used": "Name was already used or was invalid",
+      "invalid_host": "Invalid host IP address"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+
+  "options": {
+    "step": {
+      "init": {
+        "title": "Define your inverter modbus-connection",
+        "data": {
+          "name": "The prefix to be used for your inverter sensors",
+          "read_modbus_addr": "The modbus address of the Inverter",
+          "interface" : "Interface",
+          "inverter_name_suffix": "Name suffix for the inverter",
+          "inverter_power_kw": "Max inverter power (value greater than that are ignored)",
+          "read_eps": "Emergency Power Option (EPS)",
+          "read_dcb": "Dry Contact Box (SolaX Hybrid Gen4 & Gen5)",
+          "read_pm": "Parallel Mode (Master-Slave)",
+          "plugin": "Select Inverter Type",
+          "scan_interval": "The polling interval of the modbus registers in seconds",
+          "scan_interval_medium": "Medium polling interval",
+          "scan_interval_fast": "Fast polling interval"
+          
+        }
+      },
+      "serial": {
+        "title": "Serial Interface Parameters",
+        "data": {
+          "read_serial_port": "Serial port name",
+          "baudrate": "Baudrate"
+        }
+      },
+      "tcp": {
+        "title": "TCP/IP Parameters",
+        "data": {
+          "host": "The IP-address of your Inverter or Modbus Interface",
+          "port": "The TCP port on which to connect to the inverter"
+        }
+      },
+      "battery": {
+        "title": "Read out battery modules",
+        "data": {
+          "read_battery": "Enable readout"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Device is already configured",
+      "name_already_used": "Name was already used or was invalid",
+      "invalid_host": "Invalid host IP address"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
+

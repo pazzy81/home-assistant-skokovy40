@@ -1,0 +1,46 @@
+# 🔐 Sensitive files
+secrets.yaml
+
+# 🗄️ Internal HA storage (never version this)
+.storage/
+.cloud/
+.uuid
+.HA_VERSION
+homekit.state
+
+# 📝 Logs and databases
+home-assistant.log
+home-assistant.log.*
+home-assistant_v2.db
+home-assistant_v2.db-*
+
+*.db
+*.db-shm
+*.db-wal
+OZW_Log.txt
+
+# 🔌 Z-Wave / Zigbee configs
+zwcfg_*.xml
+zwscene.xml
+zwave_device_config.yaml
+
+# 🗣️ TTS cache
+tts/
+
+# ⚙️ IDE/editor junk
+.vscode/
+.idea/
+*.code-workspace
+
+# 🐍 Python cache
+__pycache__/
+*.pyc
+*$py.class
+
+# 💻 OS-specific
+.DS_Store
+Thumbs.db
+
+# 🗑️ Backups / temp
+*.bak
+*.swp

@@ -1,0 +1,85 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Inställningar för modbusanslutning till växelriktare",
+        "data": {
+          "name": "Prefix för namnsättning av sensorer på växelriktaren",
+          "read_modbus_addr": "Modbus-adress för växelriktaren",
+          "interface": "Gränssnitt",
+          "inverter_power_kw": "Max växelriktareffekt i kW (värden över detta ignoreras)",
+          "read_eps": "Nödkraftsval (EPS)",
+          "read_dcb": "Brytar-box (SolaX Hybrid Gen4 & Gen5)",
+          "read_pm": "Parallelläge (Master-Slave)",
+          "plugin": "Typ av växelriktare",
+          "scan_interval": "Uppdateringsintervall i sekunder för att läsa modbusregister",
+          "time_out": "Modbus-timeout i sekunder"
+        }
+      },
+      "serial": {
+        "title": "Parametrar för seriell port",
+        "data": {
+          "read_serial_port": "Namn på den seriella porten",
+          "baudrate": "Överföringshastighet (baudrate)"
+        }
+      },
+      "tcp": {
+        "title": "Parametrar för TCP/IP",
+        "data": {
+          "host": "IP-adress för modbusenheten i växelriktaren",
+          "port": "TCP-port för anslutning till växelriktaren"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Enheten är redan konfigurerad",
+      "name_already_used": "Detta namn är redan använt eller ogiltigt",
+      "invalid_host": "Ogiltig IP-adress"
+    },
+    "abort": {
+      "already_configured": "Enheten är redan konfigurerad"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Inställningar för modbusanslutning till växelriktare",
+        "data": {
+          "name": "Prefix för namnsättning av sensorer på växelriktaren",
+          "read_modbus_addr": "Modbus-adress till växelriktaren",
+          "interface": "Gränssnitt",
+          "inverter_power_kw": "Max växelriktareffekt (värden över detta ignoreras)",
+          "read_eps": "Nödkraftsval (EPS)",
+          "read_dcb": "Brytare-box (SolaX Hybrid Gen4 & Gen5)",
+          "read_pm": "Parallelläge (Master-Slave)",
+          "plugin": "Typ av växelriktare",
+          "scan_interval": "Uppdateringsintervall i sekunder för att läsa modbusregister",
+          "time_out": "Modbus-timeout i sekunder"
+        }
+      },
+      "serial": {
+        "title": "Parametrar för seriell port",
+        "data": {
+          "read_serial_port": "Namn på den seriella porten",
+          "baudrate": "Överföringshastighet (baudrate)"
+        }
+      },
+      "tcp": {
+        "title": "Parametrar för TCP/IP",
+        "data": {
+          "host": "IP-adress för modbusenheten i växelriktaren",
+          "port": "TCP-port för anslutning till växelriktaren",
+          "tcp_type": "Typ av Modbus TCP-anslutning"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Enheten är redan konfigurerad",
+      "name_already_used": "Detta namn är redan använt eller ogiltigt",
+      "invalid_host": "Ogiltig IP-adress"
+    },
+    "abort": {
+      "already_configured": "Enheten är redan konfigurerad"
+    }
+  }
+}
