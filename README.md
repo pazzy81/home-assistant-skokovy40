@@ -12,7 +12,7 @@ It includes YAML files, templates, and automations that I use to manage and auto
 - `www/` – static files (icons, images, frontend assets)
 
 ## ⚡ Features
-- Automations for lighting, heating, and energy monitoring
+- Automations for photovoltaic plant, heating, and energy monitoring
 - Integration with sensors (temperature, humidity, power usage)
 - Lovelace dashboards with charts and visualizations
 - Experiments with Jinja templates and template sensors
