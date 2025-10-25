@@ -16,7 +16,6 @@
         source: "sensor.current_sell_electricity_price"
 
 
-
     - name: "Pazzy - TEST TEST SMAZAT"
       unique_id: pazzy_test_test_smazat
       state: >
