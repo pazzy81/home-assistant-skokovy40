@@ -3,15 +3,6 @@ secrets.yaml
 
 # 🗄️ Internal HA storage (never version this)
 .storage/
-!.storage/input_boolean
-!.storage/input_select
-!.storage/input_number
-!.storage/input_text
-!.storage/datetime
-!.storage/button
-!.storage/counter
-!.storage/timer
-!.storage/core.config_entries
 .cloud/
 .uuid
 .HA_VERSION

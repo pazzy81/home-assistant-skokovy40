@@ -1,0 +1,29 @@
+pazzy_waterheatersettings_temp1_low:
+  name: "Pazzy - Water Heater Settings - Temperature 1 Low"
+  min: 5
+  max: 85
+  step: 1
+  mode: slider
+  initial: 40
+  unit_of_measurement: "°C"
+  icon: mdi:thermometer
+
+pazzy_waterheatersettings_temp2_mid:
+  name: "Pazzy - Water Heater Settings - Temperature 2 Mid"
+  min: 5
+  max: 85
+  step: 1
+  mode: slider
+  initial: 75
+  unit_of_measurement: "°C"
+  icon: mdi:thermometer
+
+pazzy_waterheatersettings_temp3_high:
+  name: "Pazzy - Water Heater Settings - Temperature 3 High"
+  min: 5
+  max: 85
+  step: 1
+  mode: slider
+  initial: 85
+  unit_of_measurement: "°C"
+  icon: mdi:thermometer

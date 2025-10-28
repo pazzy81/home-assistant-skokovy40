@@ -1,0 +1,8 @@
+pazzy_energyimportprice_cheaptariffperiod:
+  name: "Pazzy - Energy Import Price - Cheap Tariff Period"
+  initial: "10,12,14,17"
+  min: 0
+  max: 50
+  pattern: "^(0|[1-9]|1[0-9]|2[0-3])(,(0|[1-9]|1[0-9]|2[0-3]))*$"
+  mode: text # může být ještě mode: password
+  icon: mdi:clock-outline

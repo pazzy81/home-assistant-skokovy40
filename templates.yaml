@@ -1,6 +1,7 @@
+# vzorek na kterém jsou všechny možné atributy
 - sensor:
-    - name: "Pazzy - Energy Export Price - Current Price - TEST YAML"
-      unique_id: pazzy_energyexportprice_currentprice_TEST_YAML
+    - name: "TEST Pazzy - Energy Export Price - Current Price - TEST YAML"
+      unique_id: test_pazzy_energyexportprice_currentprice_TEST_YAML
       state: >
         {{ states('sensor.current_sell_electricity_price')
         | float | round(0) | int 
@@ -15,16 +16,43 @@
         labels: "pazzy_energy_export_price, pazzy_settings"
         source: "sensor.current_sell_electricity_price"
 
-    - name: "Pazzy - TEST TEST SMAZAT"
-      unique_id: pazzy_test_test_smazat
+
+
+# tady jsou produkční helpery a jiné entity
+    - name: "Pazzy - Energy Import Price - Cheap Tariff Active"
+      unique_id: pazzy_energyimportprice_cheaptariffactive
+      state: >
+        {% set cheap_period = states('input_text.pazzy_energyimportprice_cheaptariffperiod').split(',') | map('int') | list %}
+        {% if cheap_period | contains(now().hour) %}
+          1
+        {% else %}
+          0
+        {% endif %}
+      device_class: power
+      icon: mdi:cash-100
+
+
+
+
+
+
+# ostatní testovací helpery
+
+    - name: "TEST Pazzy - TEST TEST SMAZAT"
+      unique_id: test_pazzy_test_test_smazat
       state: >
         2
-    - name: "Ahoj SMAZAT"
-      unique_id: ahoj_smazat
+    - name: "TEST Ahoj SMAZAT"
+      unique_id: test_ahoj_smazat
       state: >
         3
-    - name: "Test333 Smazat"
-      unique_id: test333smazat
+    - name: "TEST 333 Smazat"
+      unique_id: test_333smazat
       state: >
         {{ states('sensor.pazzy_energy_export_price') | float
+        }}
+    - name: "TEST bojler"
+      unique_id: test_bojler
+      state: >
+        {{ states('input_number.pazzy_waterheatersettings_temp2_mid') | float
         }}
