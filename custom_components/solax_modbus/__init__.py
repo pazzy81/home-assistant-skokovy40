@@ -489,7 +489,7 @@ class SolaXModbusHub:
             1  # slow down factor when modbus is not responding: 1 : no slowdown, 10: ignore 9 out of 10 cycles
         )
         self.computedSensors = {}
-        self.computedButtons = {}
+        self.computedEntities = {}  # buttons and selects with value_function for autorepeat
         self.computedSwitches = {}
         self.sensorEntities = {}  # all sensor entities, indexed by key
         self.numberEntities = {}  # all number entities, indexed by key
@@ -503,6 +503,8 @@ class SolaXModbusHub:
         self.writequeue = {}  # queue requests when inverter is in sleep mode
         _LOGGER.debug(f"{self.name}: ready to call plugin to determine inverter type")
         self.plugin = plugin.plugin_instance  # getPlugin(name).plugin_instance
+        self.plugin_module = plugin  # Store plugin module for accessing module-level functions
+        self._validate_register_func = getattr(plugin, 'validate_register_data', None)  # Cache function reference
         self.wakeupButton = None
         self._invertertype = None
         self.localsUpdated = False
@@ -775,11 +777,21 @@ class SolaXModbusHub:
                     if elapsed >= (interval_group.interval or 0):
                         _LOGGER.debug(f"{self._name}: [{secs}s] interval too short – cycle took {elapsed:.3f}s ≥ interval {interval_group.interval}s; running at max possible speed")
 
-                    # Immediate catch-up if a tick arrived during our run
+                    # Immediate catch-up if a tick arrived during our run.
+                    # Only perform catch-up when the last poll succeeded. On failure, drop the pending rerun.
                     if getattr(interval_group, "pending_rerun", False):
-                        interval_group.pending_rerun = False
-                        # Loop again immediately (no sleep) to catch up once
-                        continue
+                        if agg_res:
+                            interval_group.pending_rerun = False
+                            # Loop again immediately (no sleep) to catch up once
+                            continue
+                        else:
+                            # Previous poll failed; do not schedule a back-to-back retry.
+                            interval_group.pending_rerun = False
+                            _LOGGER.debug(
+                                f"{self._name}: dropping pending catch-up due to failed poll (slowdown={self.slowdown})"
+                            )
+                            # Exit the loop; next attempt will occur per slowdown policy
+                            break
                     break
 
             _LOGGER.debug(f"{self._name}: starting timer loop for interval group: {interval}")
@@ -1231,6 +1243,10 @@ class SolaXModbusHub:
                 self.tmpdata_expiry[descr.key] = 0 # update locals only once
         """
 
+        # Plugin-level validation hook
+        if self._validate_register_func is not None:
+            val = self._validate_register_func(descr, val, data)
+
         if val == None:  # E.g. if errors have occurred during readout
             #_LOGGER.warning(f"****tmp*** treating {descr.key} failed")
             return_value = None
@@ -1400,34 +1416,41 @@ class SolaXModbusHub:
                 await self.async_write_register(self._modbus_addr, addr, val)
             self.writequeue = {}  # make sure we do not write multiple times
 
-        # execute autorepeat buttons
+        # execute autorepeat entities (buttons and selects)
         self.last_ts = time()
         for (
             k,
             v,
         ) in list(self.data["_repeatUntil"].items()): # use a list copy because dict may change during iteration
-            buttondescr = self.computedButtons[k]
-            if self.last_ts < v:
-                payload = buttondescr.value_function(BUTTONREPEAT_LOOP, buttondescr, self.data) # initval = 1 means autorepeat run
+            descr = self.computedEntities.get(k)
+            if descr and self.last_ts < v:
+                payload = descr.value_function(BUTTONREPEAT_LOOP, descr, self.data) # initval = 1 means autorepeat run
                 if payload:
-                    reg = payload.get("register", buttondescr.register)
+                    reg = payload.get("register", descr.register)
                     action = payload.get("action")
-                    if not action: _LOGGER.error(f"autorepeat value function for {k} must return dict containing action")
-                    else:
-                        if action == WRITE_MULTI_MODBUS:
-                            _LOGGER.debug(f"**debug** ready to repeat button {k} data: {payload}")
-                            await self.async_write_registers_multi(
-                                unit=self._modbus_addr,
-                                address=reg,
-                                payload=payload.get('data'),
-                            )
-            else: # expired autorepeats
+                    if not action:
+                        _LOGGER.error(f"autorepeat value function for {k} must return dict containing action")
+                    elif action == WRITE_MULTI_MODBUS:
+                        _LOGGER.debug(f"**debug** ready to repeat {k} data: {payload}")
+                        await self.async_write_registers_multi(
+                            unit=self._modbus_addr,
+                            address=reg,
+                            payload=payload.get('data'),
+                        )
+                    elif action == WRITE_SINGLE_MODBUS:
+                        _LOGGER.debug(f"Repeating {k} register {reg} value {payload.get('payload')}")
+                        await self.async_write_register(
+                            unit=self._modbus_addr,
+                            address=reg,
+                            payload=payload.get('payload')
+                        )
+            elif descr: # expired autorepeats
                 if self.data["_repeatUntil"][k] > 0: # expired recently
                     self.data["_repeatUntil"][k] = 0 # mark as finally expired, no further buttonrepeat post after this one
                     _LOGGER.info(f"calling final value function POST for {k} with initval {BUTTONREPEAT_POST}")
-                    payload = buttondescr.value_function(BUTTONREPEAT_POST, buttondescr, self.data)  # None means no final call after expiration
+                    payload = descr.value_function(BUTTONREPEAT_POST, descr, self.data)  # None means no final call after expiration
                     if payload:
-                        reg = payload.get("register", buttondescr.register)
+                        reg = payload.get("register", descr.register)
                         action = payload.get("action")
                         if action == WRITE_MULTI_MODBUS:
                             _LOGGER.info(f"terminating loop {k} - ready to send final payload data: {payload}")

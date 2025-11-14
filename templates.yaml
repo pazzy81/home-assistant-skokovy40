@@ -1,4 +1,5 @@
-# vzorek na kterém jsou všechny možné atributy
+# vzorový template na kterém jsou všechny možné atributy
+
 - sensor:
     - name: "TEST Pazzy - Energy Export Price - Current Price - TEST YAML"
       unique_id: test_pazzy_energyexportprice_currentprice_TEST_YAML
@@ -18,7 +19,8 @@
 
 
 
-# tady jsou produkční helpery a jiné entity
+    # tady jsou produkční helpery a jiné entity
+
     - name: "Pazzy - Energy Import Price - Cheap Tariff Active"
       unique_id: pazzy_energyimportprice_cheaptariffactive
       state: >
@@ -34,9 +36,16 @@
 
 
 
+    # ostatní testovací helpery
 
-
-# ostatní testovací helpery
+    - name: "Salus IT500 Status"
+      unique_id: salus_it500_status
+      state: >
+        {% if state_attr('climate.salus_thermostat', 'hvac_action') == 'heating' %}
+          Heating
+        {% else %}
+          Idle
+        {% endif %}
 
     - name: "TEST Pazzy - TEST TEST SMAZAT"
       unique_id: test_pazzy_test_test_smazat

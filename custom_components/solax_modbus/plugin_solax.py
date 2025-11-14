@@ -49,6 +49,41 @@ ALL_DCB_GROUP = DCB
 PM = 0x20000
 ALL_PM_GROUP = PM
 
+# ============================================================================
+# Plugin-Level Register Validation
+# ============================================================================
+
+# Global storage for last known good values
+_pm_last_known_values = {}
+
+def validate_register_data(descr, value, datadict):
+    """
+    Validate PM U32 sensors for overflow corruption.
+    
+    Detects 0xFFFFFF00 pattern from uninitialized slave registers and
+    returns the last known good value.
+    """
+    global _pm_last_known_values
+    
+    # PM U32 sensors only (filter by key prefix)
+    if descr.key.startswith("pm_") and descr.unit == REGISTER_U32:
+        # Handle None from core errors
+        if value is None:
+            last_value = _pm_last_known_values.get(descr.key, 0)
+            _LOGGER.warning(f"PM sensor {descr.key} received None -> using last: {last_value}W")
+            return last_value
+        
+        # Handle U32 overflow pattern
+        if value >= 0xFFFFFF00:
+            last_value = _pm_last_known_values.get(descr.key, 0)
+            _LOGGER.warning(f"PM U32 overflow {descr.key}: 0x{value:08X} -> using last: {last_value}W")
+            return last_value
+        
+        # Store valid values for future use
+        _pm_last_known_values[descr.key] = value
+    
+    return value
+
 MPPT3 = 0x40000
 MPPT4 = 0x80000
 MPPT5 = 0x100000
@@ -126,113 +161,171 @@ class SolaXModbusSwitchEntityDescription(BaseModbusSwitchEntityDescription):
 
 # ====================================== Computed value functions  =================================================
 
-
 def autorepeat_function_remotecontrol_recompute(initval, descr, datadict):
-    # initval = BUTTONREPEAT_FIRST means first run; 
-    # initval = BUTTONREPEAT_LOOP means subsequent runs for button autorepeat value functions
-    # initval = BUTTONREPEAT_POST means final call for cleanup, normally no action needed
+    """
+    Remote control power calculations for SolaX inverters - Redesigned Implementation.
+    
+    This function implements the redesigned remote control calculations based on clear
+    variable names and logical formulas. For detailed documentation, see: 
+    docs/solax-remote-control-redesigned.md
+    
+    Args:
+        initval: BUTTONREPEAT_FIRST (first run), BUTTONREPEAT_LOOP (subsequent runs), 
+                or BUTTONREPEAT_POST (cleanup)
+        descr: Entity description
+        datadict: Current sensor data dictionary
+        
+    Returns:
+        Dictionary with action and data for Modbus write operations
+    """
 
     # terminate expiring loop by disabling remotecontrol
-    if initval == BUTTONREPEAT_POST: return { 'action': WRITE_MULTI_MODBUS, 'data': [  ( "remotecontrol_power_control", "Disabled", ), ] }
+    if initval == BUTTONREPEAT_POST: 
+        return { 'action': WRITE_MULTI_MODBUS, 'data': [("remotecontrol_power_control", "Disabled")] }
 
+    # Get control parameters
     power_control = datadict.get("remotecontrol_power_control", "Disabled")
-    set_type = datadict.get("remotecontrol_set_type", "Set")  # other options did not work
+    set_type = datadict.get("remotecontrol_set_type", "Set")
     target = datadict.get("remotecontrol_active_power", 0)
     reactive_power = datadict.get("remotecontrol_reactive_power", 0)
     rc_duration = datadict.get("remotecontrol_duration", 20)
     reap_up = datadict.get("reactive_power_upper", 0)
-    reap_lo = datadict.get("reactive_power_lower", 0) 
+    reap_lo = datadict.get("reactive_power_lower", 0)
     import_limit = datadict.get("remotecontrol_import_limit", 20000)
-    meas = datadict.get("measured_power", 0)
-    pv = datadict.get("pv_power_total", 0)
+    export_limit = datadict.get("export_control_user_limit", 20000)
     rc_timeout = datadict.get("remotecontrol_timeout", 0)
-    houseload_nett = datadict.get("inverter_power", 0) - meas
-    houseload_brut = pv - datadict.get("battery_power_charge", 0) - meas
-    # Current SoC for capacity related calculations like Battery Hold/No Discharge
+    
+    # Get power measurements
+    measured_power = datadict.get("measured_power", 0)  # Grid power (positive = import, negative = export)
     battery_capacity = datadict.get("battery_capacity", 0)
+    
+    # Parallel mode support: Use PM power if in parallel mode and we're the Master
+    parallel_setting = datadict.get("parallel_setting", "Free")
+    
+    if parallel_setting == "Master":
+        # Use PM (Parallel Mode) total calculated sensors
+        pv_power = datadict.get("pm_total_pv_power", 0)
+        inverter_power = datadict.get("pm_total_inverter_power", 0)
+        battery_power_charge = datadict.get("pm_battery_power_charge", 0)
+        house_load = datadict.get("pm_total_house_load", 0)  # Use the calculated PM house load
+        
+        _LOGGER.debug(
+            "[REMOTE_CONTROL] Parallel mode detected (Master): "
+            f"PM total inverter={inverter_power}W, PM total PV={pv_power}W, "
+            f"PM battery={battery_power_charge}W, PM house_load={house_load}W"
+        )
+    elif parallel_setting == "Slave":
+        # Slaves should not execute remote control
+        _LOGGER.debug("[REMOTE_CONTROL] Parallel mode detected (Slave): skipping remote control")
+        return { 'action': WRITE_MULTI_MODBUS, 'data': [] }
+    else:
+        # Single inverter mode - use individual values
+        pv_power = datadict.get("pv_power_total", 0)
+        inverter_power = datadict.get("inverter_power", 0)
+        battery_power_charge = datadict.get("battery_power_charge", 0)
+        house_load = inverter_power - measured_power  # Single inverter house load calculation
+        
+        _LOGGER.debug(
+            "[REMOTE_CONTROL] Single inverter mode: "
+            f"inverter_power={inverter_power}W, pv_power={pv_power}W, "
+            f"battery_power_charge={battery_power_charge}W, house_load={house_load}W"
+        )
 
+    # Debug logging: Input state
+    _LOGGER.debug(
+        "[REMOTE_CONTROL] Input state: "
+        f"power_control={power_control} target={target}W "
+        f"import_limit={import_limit}W export_limit={export_limit}W "
+        f"measured_power={measured_power}W pv_power={pv_power}W "
+        f"house_load={house_load}W battery_capacity={battery_capacity}%"
+    )
+
+    # Calculate ap_target based on control mode
     if power_control == "Enabled Power Control":
+        # Direct power control - set exact grid power
         ap_target = target
-    elif power_control == "Enabled Grid Control":  # alternative computation for Power Control
-        if target < 0:
-            ap_target = target - houseload_nett  # subtract house load
+        
+    elif power_control == "Enabled Grid Control":
+        # Control grid import/export while accounting for house load
+        if target < 0:  # Export target
+            ap_target = target - house_load  # Export target minus house load
+        else:  # Import target
+            ap_target = target - house_load  # Import target minus house load (house load already supplied by inverter)
+        power_control = "Enabled Power Control"
+        
+    elif power_control == "Enabled Self Use":
+        # Minimize grid usage by using PV and battery to supply house load
+        ap_target = 0 - house_load
+        power_control = "Enabled Power Control"
+        
+    elif power_control == "Enabled Battery Control":
+        # Control battery charging/discharging to target
+        ap_target = target - pv_power # + house_load ... already accounted for by the inverter
+        power_control = "Enabled Power Control"
+        
+    elif power_control == "Enabled Feedin Priority":
+        # Maximize grid export by using excess PV and battery
+        if pv_power > house_load:
+            ap_target = 0 - pv_power - battery_power_charge  # Export all excess
         else:
-            ap_target = target - houseload_brut
+            ap_target = 0 - house_load  # Just supply house load
         power_control = "Enabled Power Control"
-    elif power_control == "Enabled Self Use":  # alternative computation for Power Control
-        ap_target = 0 - houseload_nett  # subtract house load
-        power_control = "Enabled Power Control"
-    elif power_control == "Enabled Battery Control":  # alternative computation for Power Control
-        ap_target = target - pv  # subtract house load and pv
-        power_control = "Enabled Power Control"
-    elif power_control == "Enabled Feedin Priority":  # alternative computation for Power Control
-        if pv > houseload_nett:
-            ap_target = 0 - pv + (houseload_brut - houseload_nett) * 1.20  # 0 - pv + (houseload_brut - houseload_nett)
-        else:
-            ap_target = 0 - houseload_nett
-        power_control = "Enabled Power Control"
-    elif power_control == "Enabled No Discharge":  # alternative computation for Power Control
-        # Only hold battery level at below 98% SoC to avoid PV from shutting down when full
+        
+    elif power_control == "Enabled No Discharge":
+        # Hold battery level by preventing discharge
         if battery_capacity < 98:
-            if pv <= houseload_nett:
-                ap_target = 0 - pv + (houseload_brut - houseload_nett)  # 0 - pv + (houseload_brut - houseload_nett)
-            else:
-                ap_target = 0 - houseload_nett
+            # Use PV to supply house load, import from grid only what's needed
+            ap_target = 0 - pv_power
             power_control = "Enabled Power Control"
         else:
-            ap_target = 0
-            power_control == "Disabled"
+            ap_target = 0  # Battery full, no action needed
+            power_control = "Disabled"
+            
     elif power_control == "Disabled":
         ap_target = target
+
+    # Debug logging: Target calculation
+    _LOGGER.debug(
+        "[REMOTE_CONTROL] Target calculation: "
+        f"mode={power_control} ap_target={ap_target}W"
+    )
+    
+    # Apply bounds checking based on ap_target sign
     old_ap_target = ap_target
-    ap_target = min(ap_target, import_limit - houseload_brut)
-    # _LOGGER.warning(f"import shaving: old_ap_target:{old_ap_target} new ap_target:{ap_target} max: {import_limit-houseload} min:{-export_limit-houseload}")
+    if ap_target > 0:  # Importing (positive = import)
+        import_bound = import_limit - house_load
+        ap_target = min(ap_target, import_bound)
+        _LOGGER.debug(f"[REMOTE_CONTROL] Import bounds: ap_target={ap_target}W import_bound={import_bound}W import_limit={import_limit}W house_load={house_load}W")
+    elif ap_target < 0:  # Exporting (negative = export)
+        export_bound = -export_limit + house_load
+        ap_target = max(ap_target, export_bound)
+        _LOGGER.debug(f"[REMOTE_CONTROL] Export bounds: ap_target={ap_target}W export_bound={export_bound}W export_limit={export_limit}W house_load={house_load}W")
+    # If ap_target = 0, no bounds checking needed
+    
+    # Debug logging: Bounds checking
     if old_ap_target != ap_target:
         _LOGGER.debug(
-            f"import shaving: old_ap_target:{old_ap_target} new ap_target:{ap_target} max: {import_limit-houseload_brut}"
+            "[REMOTE_CONTROL] Bounds checking: "
+            f"initial_ap_target={old_ap_target}W final_ap_target={ap_target}W "
+            f"adjusted_by={old_ap_target - ap_target}W"
         )
+
+    # Prepare result data
     res = [
-        (
-            "remotecontrol_power_control",
-            power_control,
-        ),
-        (
-            "remotecontrol_set_type",
-            set_type,
-        ),
-        (
-            "remotecontrol_active_power",
-            ap_target,
-        ),  # correct issues #488 , #492  used to be : max(min(ap_up, ap_target),   ap_lo), ),
-        (
-            "remotecontrol_reactive_power",
-            max(min(reap_up, reactive_power), reap_lo),
-        ),
-        (
-            "remotecontrol_duration",
-            rc_duration,
-        ),
-        (   # dummy fill address 0x83
-            REGISTER_U16,
-            0, # dummy target soc, should be ignored by system in mode 1
-        ),
-        (   # dummy fill address 0x84-85
-            REGISTER_U32,
-            0, # dummy target energy Wh, should be ignored by system in mode 1
-        ),
-        (   # dummy fill address 0x86-87
-            REGISTER_S32,
-            0, # dummy target charge/discharge power, should be ignored by system in mode 1
-        ),
-        (  "remotecontrol_timeout", # not in documentation as next parameter
-            rc_timeout, # not in documentation as consecutive parameter
-        ),
+        ("remotecontrol_power_control", power_control),
+        ("remotecontrol_set_type", set_type),
+        ("remotecontrol_active_power", ap_target),
+        ("remotecontrol_reactive_power", max(min(reap_up, reactive_power), reap_lo)),
+        ("remotecontrol_duration", rc_duration),
+        (REGISTER_U16, 0),  # dummy target soc
+        (REGISTER_U32, 0),  # dummy target energy Wh
+        (REGISTER_S32, 0),  # dummy target charge/discharge power
+        ("remotecontrol_timeout", rc_timeout),
     ]
-    if power_control == "Disabled": 
-        _LOGGER.info("Stopping mode 1 loop")
-        autorepeat_stop(datadict, descr.key)
-        datadict["remotecontrol_power_control_mode"] = "Disabled" # disable the mode8 remotecontrol loop 
+    
+    if power_control == "Disabled":
         autorepeat_stop(datadict, "powercontrolmode8_trigger")
+    
     _LOGGER.debug(f"Evaluated remotecontrol_trigger: corrected/clamped values: {res}")
     return { 'action': WRITE_MULTI_MODBUS, 'data': res }
 
@@ -288,13 +381,14 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
     setpvlimit = datadict.get("remotecontrol_pv_power_limit",10000)
     pushmode_power = datadict.get("remotecontrol_push_mode_power_8_9", 0)
     target_soc = datadict.get("remotecontrol_target_soc_8_9", 95)
-    rc_duration = datadict.get("remotecontrol_duration", 20)
+    #rc_duration = datadict.get("remotecontrol_duration", 20)
     import_limit = datadict.get("remotecontrol_import_limit", 20000)
     battery_capacity = datadict.get("battery_capacity", 0)
     rc_timeout = datadict.get("remotecontrol_timeout", 2)
     timeout_motion = datadict.get("remotecontrol_timeout_next_motion","VPP Off")
     pv = datadict.get("pv_power_total", 0)
     houseload = value_function_house_load(initval, descr, datadict)
+    houseload_alt = value_function_house_load_alt(initval, descr, datadict)
 
     if power_control == "Mode 8 - PV and BAT control - Duration":
         pvlimit = setpvlimit # import capping is done later
@@ -367,15 +461,16 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
     
     elif power_control == "Export-First Battery Limit":
         # --- Export-First Battery Limit (Mode 8 custom) ---
-        # Split PV surplus into (a) grid export up to the configured cap and (b) battery charging.
-        # The user percentage limits battery charge power relative to BMS max (0–100%).
-        # In deficit (house load > PV), discharge the battery up to the deficit (respecting min SOC).
+        # Controller goals (no PV limit adjustments in this mode):
+        # 1) If PV < house load (deficit): discharge the battery up to the deficit (respecting min SOC); any remaining deficit is imported from the grid.
+        # 2) If PV ≥ house load (surplus): export up to the configured grid cap (export_limit) and route any remaining surplus into the battery (respecting BMS and user % cap).
+        #    The PV power limit is not modified by this controller; no MPPT clamping is performed here.
 
         DEADBAND_W = 100  # deadband around zero net flow to avoid flicker
 
         # Export limit no readscale:
         export_limit = datadict.get("export_control_user_limit", 30000)
-        
+
         # SOC bounds
         min_discharge_soc = datadict.get("selfuse_discharge_min_soc", 10)
         max_charge_soc    = datadict.get("battery_charge_upper_soc", 100)
@@ -387,9 +482,12 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
 
         # Debug inputs
         _LOGGER.debug(
-            f"[Mode8 Export-First] inputs pv={pv}W hl={houseload}W exp_lim={export_limit}W imp_lim={import_limit}W "
+            f"[Mode8 Export-First] inputs pv={pv}W hl={houseload}W hl_alt={houseload_alt}W (using hl_alt) exp_lim={export_limit}W imp_lim={import_limit}W "
             f"soc={battery_capacity}% min_soc={min_discharge_soc}% max_soc={max_charge_soc}% pvlimit={pvlimit}W last_push={last_push}W"
         )
+
+        # Use meter-based house load for all logic
+        hl = houseload_alt
 
         # Optional probes (if available)
         measured_power = datadict.get("measured_power", None)
@@ -402,24 +500,33 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
             f"grid_import={grid_import_s if grid_import_s is not None else 'n/a'}"
         )
 
-        # Surplus path: export first (up to cap), then charge battery with the remainder (within BMS and user cap).
-        if pv >= houseload:
-            surplus = pv - houseload
+        if pv >= hl:
+            # Surplus path: export as much as allowed, battery only charges from excess beyond cap.
+            surplus = pv - hl
 
-            export_within_cap = min(export_limit, surplus)
-            rest_for_batt = max(0, surplus - export_within_cap)
+            # Keep a small undershoot margin on export to avoid micro-discharge from battery
+            export_margin_w = int(datadict.get("export_first_export_margin_w", 50) or 0)
+            export_target = max(0, min(export_limit, surplus) - max(0, export_margin_w))
+
+            # Export up to target, remainder for battery charging
+            export_within_cap = export_target
+            rest_for_batt = max(0, surplus - export_target)
 
             desired_charge, bms_cap_w, pct_cap_w = autorepeat_bms_charge(datadict, battery_capacity, max_charge_soc, rest_for_batt)
             pushmode_power = -desired_charge
 
+            # PV clamp block
+            export_hysteresis_w = int(datadict.get("export_first_export_hysteresis_w", 100) or 100)
+            pv_clamp_target = max(0, hl + export_within_cap + max(0, desired_charge) - export_hysteresis_w)
+            pvlimit = min(pvlimit, pv_clamp_target)
             _LOGGER.debug(
-                f"[Mode8 Export-First] export-first: surplus={surplus}W within_cap={export_within_cap}W rest={rest_for_batt}W "
-                f"bms_cap≈{bms_cap_w}W pct_cap={pct_cap_w}W -> charge={desired_charge}W"
+                f"[Mode8 Export-First] export-first: surplus={surplus}W export_target={export_within_cap}W rest={rest_for_batt}W "
+                f"bms_cap≈{bms_cap_w}W pct_cap={pct_cap_w}W -> charge={desired_charge}W (margin={export_margin_w}W) pv_clamp_target={pv_clamp_target}W hl={hl}W"
             )
 
         else:
             # Deficit path: discharge battery up to current deficit (if SOC allows).
-            deficit = houseload - pv
+            deficit = hl - pv
             if battery_capacity > min_discharge_soc:
                 pushmode_power = min(deficit, 30000)
             else:
@@ -427,45 +534,49 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
             _LOGGER.debug(f"[Mode8 Export-First] deficit: deficit={deficit}W soc={battery_capacity}% chosen_push={pushmode_power}W")
 
         # Deadband (simple): in surplus and not charging (push>=0), hold last_push near zero flow to avoid flicker.
-        net_flow = pv - houseload + pushmode_power  # >0 export, <0 import
-        if pv >= houseload and pushmode_power >= 0 and abs(net_flow) < DEADBAND_W:
+        net_flow = pv - hl + pushmode_power  # >0 export, <0 import
+        if pv >= hl and pushmode_power >= 0 and abs(net_flow) < DEADBAND_W:
             _LOGGER.debug(f"[Mode8 Export-First] deadband hold: net={net_flow}W within ±{DEADBAND_W}W -> push stays {last_push}W")
             pushmode_power = last_push
         else:
-            _LOGGER.debug(f"[Mode8 Export-First] deadband not applied: pv>hl={pv>=houseload}, push>=0={pushmode_power>=0}, |net|={abs(net_flow)}")
+            _LOGGER.debug(f"[Mode8 Export-First] deadband not applied: pv>hl={pv>=hl}, push>=0={pushmode_power>=0}, |net|={abs(net_flow)}")
 
-        # Export feedback (shortfall): if measured export is below the cap beyond a small margin, reduce charging a bit.
-        # Small, bounded nudge; no PID or slew logic.
-        try:
-            measured_export = int(datadict.get("grid_export", 0) or 0)
-        except Exception:
-            measured_export = 0
-        fb_deadband = int(datadict.get("export_feedback_deadband_w", 100) or 100)   # minimal gap before correcting
-        fb_max_nudge = int(datadict.get("export_feedback_max_w", 400) or 400)       # clamp per cycle
-        if pv >= houseload and pushmode_power < 0:
-            shortfall = export_limit - measured_export
-            if shortfall > fb_deadband:
-                nudge = min(shortfall, fb_max_nudge)
-                pushmode_power += nudge   # make charge less negative → increases export
-                if pushmode_power > 0:
-                    pushmode_power = 0   # do not flip to discharge in surplus
-                _LOGGER.debug(f"[Mode8 Export-First] export feedback: +{nudge}W (measured={measured_export}W, cap={export_limit}W)")
-
-        # Export feedback (overshoot): if measured export exceeds the cap beyond the margin, increase charging a bit.
-        if pv >= houseload and pushmode_power <= 0:
-            overshoot = measured_export - export_limit
-            if overshoot > fb_deadband:
-                nudge = min(overshoot, fb_max_nudge)
-                pushmode_power -= nudge   # charge a bit more → lowers export
-                _LOGGER.debug(f"[Mode8 Export-First] export overshoot feedback: -{nudge}W (measured={measured_export}W, cap={export_limit}W)")
-
-        # Discharge feedback (deficit): if we still see export while discharging, trim discharge a bit.
-        # Uses same fb_deadband/fb_max_nudge as surplus feedback to keep behavior bounded.
-        if pv < houseload and pushmode_power > 0:
+        # Surplus feedback blocks are now disabled by default unless explicitly enabled
+        if datadict.get("export_first_feedback_enabled", False):
+            # Export feedback (shortfall): if measured export is below the cap beyond a small margin, reduce charging a bit.
+            # Small, bounded nudge; no PID or slew logic.
             try:
                 measured_export = int(datadict.get("grid_export", 0) or 0)
             except Exception:
                 measured_export = 0
+            fb_deadband = int(datadict.get("export_feedback_deadband_w", 100) or 100)   # minimal gap before correcting
+            fb_max_nudge = int(datadict.get("export_feedback_max_w", 400) or 400)       # clamp per cycle
+            if pv >= hl and pushmode_power < 0:
+                shortfall = export_limit - measured_export
+                if shortfall > fb_deadband:
+                    nudge = min(shortfall, fb_max_nudge)
+                    pushmode_power += nudge   # make charge less negative → increases export
+                    if pushmode_power > 0:
+                        pushmode_power = 0   # do not flip to discharge in surplus
+                    _LOGGER.debug(f"[Mode8 Export-First] export feedback: +{nudge}W (measured={measured_export}W, cap={export_limit}W)")
+
+            # Export feedback (overshoot): if measured export exceeds the cap beyond the margin, increase charging a bit.
+            if pv >= hl and pushmode_power <= 0:
+                overshoot = measured_export - export_limit
+                if overshoot > fb_deadband:
+                    nudge = min(overshoot, fb_max_nudge)
+                    pushmode_power -= nudge   # charge a bit more → lowers export
+                    _LOGGER.debug(f"[Mode8 Export-First] export overshoot feedback: -{nudge}W (measured={measured_export}W, cap={export_limit}W)")
+
+        # Discharge feedback (deficit): if we still see export while discharging, trim discharge a bit.
+        # Uses same fb_deadband/fb_max_nudge as surplus feedback to keep behavior bounded.
+        if pv < hl and pushmode_power > 0:
+            try:
+                measured_export = int(datadict.get("grid_export", 0) or 0)
+            except Exception:
+                measured_export = 0
+            fb_deadband = int(datadict.get("export_feedback_deadband_w", 100) or 100)   # minimal gap before correcting
+            fb_max_nudge = int(datadict.get("export_feedback_max_w", 400) or 400)       # clamp per cycle
             if measured_export > fb_deadband:
                 nudge = min(measured_export, fb_max_nudge)
                 pushmode_power = max(0, pushmode_power - nudge)
@@ -474,14 +585,14 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
                 )
 
         # Safety: do not discharge above the instantaneous deficit.
-        if pv < houseload:
-            deficit_now = houseload - pv
+        if pv < hl:
+            deficit_now = hl - pv
             if pushmode_power > deficit_now:
-                _LOGGER.debug(f"[Mode8 Export-First] clamp discharge to deficit: push={pushmode_power}W -> {deficit_now}W (pv={pv} hl={houseload})")
+                _LOGGER.debug(f"[Mode8 Export-First] clamp discharge to deficit: push={pushmode_power}W -> {deficit_now}W (pv={pv} hl={hl})")
                 pushmode_power = deficit_now
 
         # Final debug and state
-        net_flow = pv - houseload + pushmode_power
+        net_flow = pv - hl + pushmode_power
         _LOGGER.debug(f"[Mode8 Export-First] result: push={pushmode_power}W pvlimit={pvlimit}W net_flow={net_flow}W (>0 export, <0 import)")
         datadict["_mode8_last_push"] = pushmode_power
     elif power_control == "Enabled Grid Control": 
@@ -516,10 +627,10 @@ def autorepeat_function_powercontrolmode8_recompute(initval, descr, datadict):
             "remotecontrol_push_mode_power_8_9",
             pushmode_power,
         ),
-        (
-            "remotecontrol_duration",
-            rc_duration,
-        ),
+        #(
+        #    "remotecontrol_duration",
+        #    rc_duration,
+        #),
         (   "remotecontrol_timeout",
             rc_timeout,
         ),
@@ -594,11 +705,21 @@ def value_function_hardware_version_g5(initval, descr, datadict):
 
 
 def value_function_house_load(initval, descr, datadict):
-    return (
-        datadict.get("inverter_power", 0)
-        - datadict.get("measured_power", 0)
-        + datadict.get("meter_2_measured_power", 0)
+    inverter_power = datadict.get("inverter_power", 0)
+    measured_power = datadict.get("measured_power", 0)
+    meter_2_power = datadict.get("meter_2_measured_power", 0)
+    result = inverter_power - measured_power + meter_2_power
+    
+    _LOGGER.debug(
+        "[HOUSE_LOAD] Calculation: "
+        f"inverter_power={inverter_power}W "
+        f"measured_power={measured_power}W "
+        f"meter_2_power={meter_2_power}W "
+        f"result={result}W "
+        f"meter_1_direction={datadict.get('meter_1_direction', 'unknown')}"
     )
+    
+    return result
 
 
 def value_function_house_load_alt(initval, descr, datadict):
@@ -618,6 +739,118 @@ def value_function_inverter_power_g5(initval, descr, datadict):
         + datadict.get("inverter_power_l2", 0)
         + datadict.get("inverter_power_l3", 0)
     )
+
+def value_function_pm_total_inverter_power(initval, descr, datadict):
+    """Calculate total inverter power in parallel mode (sum of all phases)."""
+    l1_power = datadict.get("pm_activepower_l1", 0)
+    l2_power = datadict.get("pm_activepower_l2", 0)
+    l3_power = datadict.get("pm_activepower_l3", 0)
+    
+    # Handle None values from overflow protection
+    if l1_power is None:
+        l1_power = 0
+    if l2_power is None:
+        l2_power = 0
+    if l3_power is None:
+        l3_power = 0
+        
+    return l1_power + l2_power + l3_power
+
+def value_function_pm_total_pv_power(initval, descr, datadict):
+    """Calculate total PV power in parallel mode (sum of all inverters)."""
+    pv_power_1 = datadict.get("pm_pv_power_1", 0)
+    pv_power_2 = datadict.get("pm_pv_power_2", 0)
+    
+    # Handle None values from overflow protection
+    if pv_power_1 is None:
+        pv_power_1 = 0
+    if pv_power_2 is None:
+        pv_power_2 = 0
+        
+    return pv_power_1 + pv_power_2
+
+def value_function_pm_total_house_load(initval, descr, datadict):
+    """
+    Calculate total house load in parallel mode with delta correction.
+
+    Why?
+    SolaX inverters underreport the inverter power measurement during remote 
+    control. For example: This shows up as higher house load during battery 
+    charging from the grid. We can use the physics method to correct for this.
+
+    How?
+    We use two methods and apply correction during remote control. The two 
+    calculations allow us to normailze the inflaction by taking the midpoint 
+    of the delta:
+
+    1. Inverter method: pm_power - grid_power 
+       (can be inflated during RC)
+    2. Physics method: pv_power - grid_power - battery_power 
+       (energy conservation)
+    
+    During remote control, if the two methods differ by < 25%, split the difference
+    to compensate for inverter measurement inflation.
+    """
+    # Get raw sensor values
+    pm_inverter_power = (
+        datadict.get("pm_activepower_l1", 0)
+        + datadict.get("pm_activepower_l2", 0)
+        + datadict.get("pm_activepower_l3", 0)
+    )
+    grid_power = datadict.get("measured_power", 0)
+    pv_power = datadict.get("pm_total_pv_power", 0)
+    battery_power = datadict.get("pm_battery_power_charge", 0)
+    # Note: pm_battery_power_charge represents grid-to-battery charging only
+    # It does NOT include PV contribution to battery charging
+    
+    # Method 1: Inverter-based calculation (inverter perspective)
+    inverter_method = pm_inverter_power - grid_power
+    
+    # Method 2: Physics-based calculation (energy conservation: PV - Grid - Battery_from_grid = House)
+    # Since battery_power is grid-to-battery only, this correctly calculates house load
+    physics_method = pv_power - grid_power - battery_power
+    
+    # Apply delta correction during remote control if delta is reasonable (< 25%)
+    rc_active = datadict.get("remotecontrol_active_power", 0)
+    if rc_active != 0 and inverter_method != 0:
+        delta = physics_method - inverter_method
+        
+        # Only apply if delta < 25% (large deltas indicate transition states)
+        if abs(delta) <= abs(inverter_method) * 0.25:
+            # Split the difference between the two methods
+            return inverter_method - (delta / 2)
+    
+    # Default: use inverter method
+    return inverter_method
+
+def value_function_pm_total_reactive_or_apparentpower(initval, descr, datadict):
+    """Calculate total reactive power in parallel mode (sum of all phases)."""
+    return (
+        datadict.get("pm_reactive_or_apparentpower_l1", 0)
+        + datadict.get("pm_reactive_or_apparentpower_l2", 0)
+        + datadict.get("pm_reactive_or_apparentpower_l3", 0)
+    )
+
+def value_function_pm_total_inverter_current(initval, descr, datadict):
+    """Calculate total inverter current in parallel mode (sum of all phases)."""
+    return (
+        datadict.get("pm__current_l1", 0)
+        + datadict.get("pm__current_l2", 0)
+        + datadict.get("pm__current_l3", 0)
+    )
+
+def value_function_pm_total_pv_current(initval, descr, datadict):
+    """Calculate total PV current in parallel mode (sum of all PV inputs)."""
+    pv_current_1 = datadict.get("pm_pv_current_1", 0)
+    pv_current_2 = datadict.get("pm_pv_current_2", 0)
+    
+    # Handle None values from overflow protection
+    if pv_current_1 is None:
+        pv_current_1 = 0
+    if pv_current_2 is None:
+        pv_current_2 = 0
+        
+    return pv_current_1 + pv_current_2
 
 def value_function_battery_capacity_gen5(initval, descr, datadict):
     # Check if total capacity has a sane value, if so return that
@@ -6757,7 +6990,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         scale=0.1,
         register_type=REG_INPUT,
         unit=REGISTER_S16,
-        allowedtypes=HYBRID | GEN5,
+        allowedtypes=HYBRID | GEN5 | GEN6,
     ),
     SolaXModbusSensorEntityDescription(
         name="Battery 2 Current Charge",
@@ -6768,7 +7001,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         scale=0.1,
         register_type=REG_INPUT,
         unit=REGISTER_S16,
-        allowedtypes=HYBRID | GEN5,
+        allowedtypes=HYBRID | GEN5 | GEN6,
         icon="mdi:current-dc",
     ),
     SolaXModbusSensorEntityDescription(
@@ -6780,7 +7013,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         register=0x129,
         register_type=REG_INPUT,
         unit=REGISTER_S16,
-        allowedtypes=HYBRID | GEN5,
+        allowedtypes=HYBRID | GEN5 | GEN6,
         icon="mdi:battery-charging",
     ),
     SolaXModbusSensorEntityDescription(
@@ -6790,7 +7023,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         device_class=SensorDeviceClass.BATTERY,
         register=0x12D,
         register_type=REG_INPUT,
-        allowedtypes=HYBRID | GEN5,
+        allowedtypes=HYBRID | GEN5 | GEN6,
     ),
     SolaXModbusSensorEntityDescription(
         name="Battery Total Capacity",
@@ -6800,7 +7033,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         register=0x12E,
         scan_group = SCAN_GROUP_DEFAULT,
         register_type=REG_INPUT,
-        allowedtypes=HYBRID | GEN5,
+        allowedtypes=HYBRID | GEN5 | GEN6,
     ),
     SolaXModbusSensorEntityDescription(
         name="Battery 2 Temperature",
@@ -6811,7 +7044,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         register=0x132,
         register_type=REG_INPUT,
         unit=REGISTER_S16,
-        allowedtypes=AC | HYBRID | GEN5,
+        allowedtypes=AC | HYBRID | GEN5 | GEN6,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SolaXModbusSensorEntityDescription(
@@ -6864,6 +7097,72 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         register_type=REG_INPUT,
         unit=REGISTER_S32,
         allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+    ),
+    SolaXModbusSensorEntityDescription(
+        name="PM Total Inverter Power",
+        key="pm_total_inverter_power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_function=value_function_pm_total_inverter_power,
+        allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+        depends_on=("pm_activepower_l1", "parallel_setting"),
+        icon="mdi:home-lightning-bolt",
+    ),
+    SolaXModbusSensorEntityDescription(
+        name="PM Total PV Power",
+        key="pm_total_pv_power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_function=value_function_pm_total_pv_power,
+        allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+        depends_on=("pm_pv_power_1", "parallel_setting"),
+        icon="mdi:solar-power",
+    ),
+    SolaXModbusSensorEntityDescription(
+        name="PM Total House Load",
+        key="pm_total_house_load",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_function=value_function_pm_total_house_load,
+        allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+        depends_on=("pm_activepower_l1", "parallel_setting"),
+        icon="mdi:home-lightning-bolt",
+    ),
+    SolaXModbusSensorEntityDescription(
+        name="PM Total Reactive or ApparentPower",
+        key="pm_total_reactive_or_apparentpower",
+        native_unit_of_measurement=UnitOfApparentPower.VOLT_AMPERE,
+        device_class=SensorDeviceClass.APPARENT_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_function=value_function_pm_total_reactive_or_apparentpower,
+        allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+        depends_on=("pm_reactive_or_apparentpower_l1", "parallel_setting"),
+        icon="mdi:flash",
+    ),
+    SolaXModbusSensorEntityDescription(
+        name="PM Total Inverter Current",
+        key="pm_total_inverter_current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_function=value_function_pm_total_inverter_current,
+        allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+        depends_on=("pm__current_l1", "parallel_setting"),
+        icon="mdi:current-ac",
+    ),
+    SolaXModbusSensorEntityDescription(
+        name="PM Total PV Current",
+        key="pm_total_pv_current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_function=value_function_pm_total_pv_current,
+        allowedtypes=AC | HYBRID | GEN3 | GEN4 | GEN5 | GEN6 | PM,
+        depends_on=("pm_pv_current_1", "parallel_setting"),
+        icon="mdi:current-dc",
     ),
     SolaXModbusSensorEntityDescription(
         name="PM Reactive or ApparentPower L1",
@@ -6960,6 +7259,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         key="pm_pv_current_1",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
         register=0x1F6,
         register_type=REG_INPUT,
         unit=REGISTER_U32,
@@ -6973,6 +7273,7 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
         key="pm_pv_current_2",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
         register=0x1F8,
         register_type=REG_INPUT,
         unit=REGISTER_U32,
@@ -9164,7 +9465,7 @@ class solax_plugin(plugin_base):
             self.inverter_model = f"X1-IES-{seriesnumber[2:3]}.{seriesnumber[3:4]}kW"
         elif seriesnumber.startswith("10M"):
             kw_value = int(seriesnumber[3:5], 16)
-            invertertype = AC | HYBRID | GEN6 | X1
+            invertertype = HYBRID | GEN6 | X1
             if kw_value < 8:
                 invertertype |= MPPT3
             else:
