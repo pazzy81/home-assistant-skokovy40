@@ -1,111 +1,138 @@
-- id: '1753219136165'
+- id: "1753219136165"
   alias: BOILER Heating Enable
-  description: ''
+  description: ""
   triggers:
-  - trigger: state
-    entity_id:
-    - sensor.boiler_enabled_time_window_manual
-  - trigger: state
-    entity_id:
-    - input_boolean.boiler_automation_enabled
+    - trigger: state
+      entity_id:
+        - sensor.boiler_enabled_time_window_manual
+    - trigger: state
+      entity_id:
+        - input_boolean.boiler_automation_enabled
   conditions:
-  - condition: state
-    entity_id: input_boolean.boiler_automation_enabled
-    state: 'on'
+    - condition: state
+      entity_id: input_boolean.boiler_automation_enabled
+      state: "on"
   actions:
-  - choose:
-    - conditions:
-      - condition: state
-        entity_id: sensor.boiler_enabled_time_window_manual
-        state: 'True'
-      sequence:
-      - device_id: 7ce2a8a77d759ccb217c42ed13850707
-        domain: select
-        entity_id: 057d77bbdceee1cf82dfc55c2a30c869
-        type: select_option
-        option: MANUAL
-    default:
-    - device_id: 7ce2a8a77d759ccb217c42ed13850707
-      domain: select
-      entity_id: 057d77bbdceee1cf82dfc55c2a30c869
-      type: select_option
-      option: ANTIFREEZE
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: sensor.boiler_enabled_time_window_manual
+              state: "True"
+          sequence:
+            - device_id: 7ce2a8a77d759ccb217c42ed13850707
+              domain: select
+              entity_id: 057d77bbdceee1cf82dfc55c2a30c869
+              type: select_option
+              option: MANUAL
+      default:
+        - device_id: 7ce2a8a77d759ccb217c42ed13850707
+          domain: select
+          entity_id: 057d77bbdceee1cf82dfc55c2a30c869
+          type: select_option
+          option: ANTIFREEZE
   mode: single
-- id: '1753221682287'
+- id: "1753221682287"
   alias: FVE Export Enable
-  description: ''
+  description: ""
   triggers:
-  - trigger: state
-    entity_id:
-    - sensor.fve_set_export_enable
-    - input_boolean.fve_automation_enabled
+    - trigger: state
+      entity_id:
+        - sensor.fve_set_export_enable
+        - input_boolean.fve_automation_enabled
   conditions:
-  - condition: state
-    entity_id: input_boolean.fve_automation_enabled
-    state: 'on'
+    - condition: state
+      entity_id: input_boolean.fve_automation_enabled
+      state: "on"
   actions:
-  - choose:
-    - conditions:
-      - condition: state
-        entity_id: sensor.fve_set_export_enable
-        state: 'True'
-      sequence:
-      - device_id: 7af96decc018596bcefc53fe84de961a
-        domain: select
-        entity_id: ce63d26ccbfbeae5321fbfee5538a5ac
-        type: select_option
-        option: Grid
-      - action: number.set_value
-        metadata: {}
-        data:
-          value: '{{ (states(''input_number.fve_allowed_export_level'') | float )
-            * 1000 }}'
-        target:
-          device_id: 7af96decc018596bcefc53fe84de961a
-          entity_id: number.solax_export_control_user_limit
-    default:
-    - device_id: 7af96decc018596bcefc53fe84de961a
-      domain: select
-      entity_id: ce63d26ccbfbeae5321fbfee5538a5ac
-      type: select_option
-      option: Disabled
-    - device_id: 7af96decc018596bcefc53fe84de961a
-      domain: number
-      entity_id: 707e4dfb6ba4aa4bb0b165ccf3a83e27
-      type: set_value
-      value: 0
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: sensor.fve_set_export_enable
+              state: "True"
+          sequence:
+            - device_id: 7af96decc018596bcefc53fe84de961a
+              domain: select
+              entity_id: ce63d26ccbfbeae5321fbfee5538a5ac
+              type: select_option
+              option: Grid
+            - action: number.set_value
+              metadata: {}
+              data:
+                value:
+                  "{{ (states('input_number.fve_allowed_export_level') | float )
+                  * 1000 }}"
+              target:
+                device_id: 7af96decc018596bcefc53fe84de961a
+                entity_id: number.solax_export_control_user_limit
+      default:
+        - device_id: 7af96decc018596bcefc53fe84de961a
+          domain: select
+          entity_id: ce63d26ccbfbeae5321fbfee5538a5ac
+          type: select_option
+          option: Disabled
+        - device_id: 7af96decc018596bcefc53fe84de961a
+          domain: number
+          entity_id: 707e4dfb6ba4aa4bb0b165ccf3a83e27
+          type: set_value
+          value: 0
   mode: single
-- id: '1753224974239'
+- id: "1753224974239"
   alias: FVE Use Mode Feed-In
-  description: ''
+  description: ""
   triggers:
-  - trigger: state
-    entity_id:
-    - sensor.fve_set_use_mode_to_feed_in
-    - input_boolean.fve_automation_enabled
+    - trigger: state
+      entity_id:
+        - sensor.fve_set_use_mode_to_feed_in
+        - input_boolean.fve_automation_enabled
   conditions:
-  - condition: state
-    entity_id: input_boolean.fve_automation_enabled
-    state: 'on'
+    - condition: state
+      entity_id: input_boolean.fve_automation_enabled
+      state: "on"
   actions:
-  - choose:
-    - conditions:
-      - condition: state
-        entity_id: sensor.fve_set_use_mode_to_feed_in
-        state: 'True'
-      - condition: state
-        entity_id: input_boolean.fve_automation_enabled
-        state: 'True'
-      sequence:
-      - device_id: 7af96decc018596bcefc53fe84de961a
-        domain: select
-        entity_id: 8429a00635c39d3c417a3eecbd453563
-        type: select_option
-        option: Feedin Priority
-    default:
-    - device_id: 7af96decc018596bcefc53fe84de961a
-      domain: select
-      entity_id: 8429a00635c39d3c417a3eecbd453563
-      type: select_option
-      option: Self Use Mode
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: sensor.fve_set_use_mode_to_feed_in
+              state: "True"
+            - condition: state
+              entity_id: input_boolean.fve_automation_enabled
+              state: "True"
+          sequence:
+            - device_id: 7af96decc018596bcefc53fe84de961a
+              domain: select
+              entity_id: 8429a00635c39d3c417a3eecbd453563
+              type: select_option
+              option: Feedin Priority
+      default:
+        - device_id: 7af96decc018596bcefc53fe84de961a
+          domain: select
+          entity_id: 8429a00635c39d3c417a3eecbd453563
+          type: select_option
+          option: Self Use Mode
   mode: single
+- id: "TEMP_smart_plug_time_control"
+  alias: Ovládání zásuvky (vánoční číslo 9) podle času
+  trigger:
+    - platform: time_pattern
+      minutes: "/5"
+  action:
+    - choose:
+        - conditions:
+            - condition: time
+              after: "16:00:00"
+              before: "22:00:00"
+          sequence:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.smart_plug
+        - conditions:
+            - condition: or
+              conditions:
+                - condition: time
+                  before: "16:00:00"
+                - condition: time
+                  after: "22:00:00"
+          sequence:
+            - service: switch.turn_off
+              target:
+                entity_id: switch.smart_plug

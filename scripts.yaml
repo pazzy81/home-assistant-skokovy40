@@ -1,0 +1,39 @@
+# prepnout_tv_na_1:
+#   alias: "Prepnout TV na 1"
+#   sequence:
+#     - service: remote.send_command
+#       target:
+#         entity_id: remote.pazzy_samsung_tv_7_163_cm
+#       data:
+#         command: "KEY_1"
+#   mode: single
+#   icon: mdi:television-classic
+
+
+zapnout_tv_a_prepnout_na_1:
+  alias: "Zapnout TV a prepnout na 1"
+  sequence:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: >
+                {{ states('media_player.pazzy_samsung_tv_7_163_cm') != 'on' }}
+          sequence:
+            - service: media_player.turn_on
+              target:
+                entity_id: media_player.pazzy_samsung_tv_7_163_cm
+            - delay: "00:00:03"
+      default:
+        - service: remote.send_command
+          target:
+            entity_id: remote.pazzy_samsung_tv_7_163_cm
+          data:
+            command: "KEY_POWER"
+        - delay: "00:00:03"
+    - service: remote.send_command
+      target:
+        entity_id: remote.pazzy_samsung_tv_7_163_cm
+      data:
+        command: "KEY_1"
+  mode: single
+  icon: mdi:television-classic

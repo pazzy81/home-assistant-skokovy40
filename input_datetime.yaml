@@ -1,0 +1,13 @@
+# testovací helpery pro účely použití v ApexCharts
+
+# zatím nefunkční
+pazzy_apexcharts_consumption_vs_production_24h_from:
+  name: "Pazzy - ApexCharts - Spotřeba vs Výroba (24h) - Od"
+  has_date: true
+  has_time: false
+  icon: mdi:calendar-clock
+pazzy_apexcharts_consumption_vs_production_24h_to:
+  name: "Pazzy - ApexCharts - Spotřeba vs Výroba (24h) - Do"
+  has_date: true
+  has_time: false
+  icon: mdi:calendar-clock

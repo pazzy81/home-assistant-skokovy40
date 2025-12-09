@@ -13,4 +13,16 @@ input_boolean: !include input_boolean.yaml
 input_number: !include input_number.yaml
 input_select: !include input_select.yaml
 input_text: !include input_text.yaml
+input_datetime: !include input_datetime.yaml
 template: !include templates.yaml
+
+# assistants:
+#   - name: "PazzyNabu"
+#     language: "cs"
+#     conversation_engine: "conversation.home_assistant"
+#     conversation_language: "cs"
+#     prefer_local_intents: true
+#     stt_engine: "stt.speech_to_phrase"
+#     stt_language: "cs"
+#     tts_engine: "tts.piper"
+#     tts_language: "cs"
