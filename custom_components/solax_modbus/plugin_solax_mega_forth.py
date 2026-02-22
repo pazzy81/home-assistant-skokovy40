@@ -1,11 +1,46 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+
+from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.select import SelectEntityDescription
-from homeassistant.components.button import ButtonEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfApparentPower,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfEnergy,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfTemperature,
+)
+from homeassistant.helpers.entity import EntityCategory
+
+from custom_components.solax_modbus.const import (
+    _LOGGER,
+    CONF_READ_DCB,
+    CONF_READ_EPS,
+    CONF_READ_PM,
+    DEFAULT_READ_DCB,
+    DEFAULT_READ_EPS,
+    DEFAULT_READ_PM,
+    REG_HOLDING,
+    REG_INPUT,
+    REGISTER_S16,
+    REGISTER_S32,
+    REGISTER_STR,
+    REGISTER_U16,
+    REGISTER_U32,
+    BaseModbusButtonEntityDescription,
+    BaseModbusNumberEntityDescription,
+    BaseModbusSelectEntityDescription,
+    BaseModbusSensorEntityDescription,
+    UnitOfReactivePower,
+    plugin_base,
+)
+
 from .pymodbus_compat import DataType, convert_from_registers
-from custom_components.solax_modbus.const import *
-from time import time
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,7 +51,7 @@ within a group, the bits in an entitydeclaration will be interpreted as OR
 between groups, an AND condition is applied, so all gruoups must match.
 An empty group (group without active flags) evaluates to True.
 example: GEN3 | GEN4 | GEN5 | X1 | X3 | EPS
-means:  any inverter of tyoe (GEN3 or GEN4 | GEN5) and (X1 or X3) and (EPS)
+means:  any inverter of type (GEN3 or GEN4 | GEN5) and (X1 or X3) and (EPS)
 An entity can be declared multiple times (with different bitmasks) if the parameters are different for each inverter type
 """
 
@@ -993,7 +1028,6 @@ SENSOR_TYPES_MAIN: list[SolaXModbusSensorEntityDescription] = [
 
 @dataclass
 class solax_mega_forth_plugin(plugin_base):
-
     async def async_determineInverterType(self, hub, configdict):
         # global SENSOR_TYPES
         _LOGGER.info(f"{hub.name}: trying to determine inverter type")
@@ -1135,7 +1169,7 @@ plugin_instance = solax_mega_forth_plugin(
     SELECT_TYPES=SELECT_TYPES,
     SWITCH_TYPES=[],
     block_size=100,
-    #order16=Endian.BIG,
+    # order16=Endian.BIG,
     order32="big",
     auto_block_ignore_readerror=True,
 )

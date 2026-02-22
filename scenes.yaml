@@ -1,0 +1,383 @@
+- id: '1768777106374'
+  name: Pazzy Test Scena
+  entities:
+    light.led_strip_01:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode: xy
+      brightness: 254
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      - 129.412
+      - 100
+      rgb_color:
+      - 0
+      - 255
+      - 40
+      xy_color:
+      - 0.171
+      - 0.729
+      off_with_transition: false
+      off_brightness:
+      friendly_name: LED_Strip_01_china
+      supported_features: 40
+      state: 'on'
+    media_player.pazzy_samsung_tv_7_163_cm:
+      source_list:
+      - TV
+      - HDMI
+      device_class: tv
+      friendly_name: Pazzy Samsung TV 7 163 cm
+      supported_features: 24509
+      volume_level: 0.04
+      is_volume_muted: false
+      state: 'on'
+    remote.pazzy_samsung_tv_7_163_cm:
+      friendly_name: Pazzy Samsung TV 7 163 cm
+      supported_features: 0
+      state: 'on'
+  icon: mdi:lightbulb
+  metadata: {}
+- id: '1770586361414'
+  name: Vypni světla obývák a kuchyň
+  entities:
+    light.svetlo_bar:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Světlo Bar
+      supported_features: 40
+      state: 'off'
+    light.svetlo_gauc:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Světlo Gauč
+      supported_features: 40
+      state: 'off'
+    light.svetlo_jidelna:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Světlo Jídelna
+      supported_features: 40
+      state: 'off'
+    light.tz3000_qd7hej8u_ts0505b:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Lampa Bopso
+      supported_features: 40
+      state: 'off'
+    light.lamp_east:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Lampa Gauč
+      supported_features: 40
+      state: 'off'
+    light.lamp_west:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 76
+      friendly_name: Lampa Papoušek
+      supported_features: 40
+      state: 'off'
+    light.led_strip_01:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Kuchyňská linka
+      supported_features: 40
+      state: 'off'
+  icon: mdi:lightbulb
+  metadata: {}
+- id: '1770589516327'
+  name: Papoušek
+  entities:
+    light.svetlo_bar:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Světlo Bar
+      supported_features: 40
+      state: 'off'
+    light.svetlo_gauc:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Světlo Gauč
+      supported_features: 40
+      state: 'off'
+    light.svetlo_jidelna:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Světlo Jídelna
+      supported_features: 40
+      state: 'off'
+    light.tz3000_qd7hej8u_ts0505b:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Lampa Bopso
+      supported_features: 40
+      state: 'off'
+    light.lamp_east:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Lampa Gauč
+      supported_features: 40
+      state: 'off'
+    light.lamp_west:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode: xy
+      brightness: 128
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      - 131.294
+      - 100
+      rgb_color:
+      - 0
+      - 255
+      - 48
+      xy_color:
+      - 0.170993
+      - 0.720989
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Lampa Papoušek
+      supported_features: 40
+      state: 'on'
+    light.led_strip_01:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Kuchyňská linka
+      supported_features: 40
+      state: 'off'
+  icon: mdi:lightbulb
+  metadata: {}
+- id: '1770590852947'
+  name: Zapni světla obývák a kuchyň
+  entities:
+    light.skupina_svetlo_obyvak:
+      supported_color_modes:
+      - color_temp
+      - xy
+      icon: mdi:lightbulb-group
+      friendly_name: Světla Obývák
+      supported_features: 40
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 5025
+      color_temp: 199
+      hs_color:
+      - 27.028
+      - 18.905
+      rgb_color:
+      - 255
+      - 229
+      - 207
+      xy_color:
+      - 0.37
+      - 0.35
+      entity_id:
+      - light.led_strip_01
+      - light.lamp_east
+      - light.lamp_west
+      - light.svetlo_bar
+      - light.svetlo_jidelna
+      - light.svetlo_gauc
+      state: 'on'
+  metadata:
+    light.skupina_svetlo_obyvak:
+      entity_only: true
+  icon: mdi:lightbulb-alert

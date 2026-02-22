@@ -17,8 +17,6 @@
         labels: "pazzy_energy_export_price, pazzy_settings"
         source: "sensor.current_sell_electricity_price"
 
-
-
     # tady jsou produkční helpery a jiné entity
 
     - name: "Pazzy - Energy Import Price - Cheap Tariff Active"
@@ -33,7 +31,15 @@
       device_class: power
       icon: mdi:cash-100
 
-
+    - name: "Pazzy26 - Salus Temperature Set"
+      unique_id: pazzy25_salus_temp_set
+      state: >
+        {{ state_attr('climate.salus_thermostat', 'temperature') }}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      icon: mdi:thermometer-high
+      attributes:
+        labels: "salus, temperature"
 
     # ostatní testovací helpery
 

@@ -1,11 +1,51 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from time import time
+
+from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.select import SelectEntityDescription
-from homeassistant.components.button import ButtonEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfApparentPower,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfEnergy,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfTemperature,
+    UnitOfTime,
+)
+from homeassistant.helpers.entity import EntityCategory
+
+from custom_components.solax_modbus.const import (
+    _LOGGER,
+    CONF_READ_DCB,
+    CONF_READ_EPS,
+    CONF_READ_PM,
+    DEFAULT_READ_DCB,
+    DEFAULT_READ_EPS,
+    DEFAULT_READ_PM,
+    REG_HOLDING,
+    REG_INPUT,
+    REGISTER_S16,
+    REGISTER_STR,
+    REGISTER_U16,
+    REGISTER_U32,
+    REGISTER_WORDS,
+    BaseModbusButtonEntityDescription,
+    BaseModbusNumberEntityDescription,
+    BaseModbusSelectEntityDescription,
+    BaseModbusSensorEntityDescription,
+    autorepeat_remaining,
+    autorepeat_stop,
+    plugin_base,
+    value_function_gen4time,
+    value_function_rtc,
+)
+
 from .pymodbus_compat import DataType, convert_from_registers
-from custom_components.solax_modbus.const import *
-from time import time
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,7 +56,7 @@ within a group, the bits in an entitydeclaration will be interpreted as OR
 between groups, an AND condition is applied, so all gruoups must match.
 An empty group (group without active flags) evaluates to True.
 example: GEN3 | GEN4 | X1 | X3 | EPS
-means:  any inverter of tyoe (GEN3 or GEN4) and (X1 or X3) and (EPS)
+means:  any inverter of type (GEN3 or GEN4) and (X1 or X3) and (EPS)
 An entity can be declared multiple times (with different bitmasks) if the parameters are different for each inverter type
 """
 
@@ -151,7 +191,7 @@ def value_function_remotecontrol_recompute(initval, descr, datadict):
     # _LOGGER.warning(f"peak shaving: old_ap_target:{old_ap_target} new ap_target:{ap_target} max: {import_limit-houseload} min:{-export_limit-houseload}")
     if old_ap_target != ap_target:
         _LOGGER.debug(
-            f"peak shaving: old_ap_target:{old_ap_target} new ap_target:{ap_target} max: {import_limit-houseload_brut}"
+            f"peak shaving: old_ap_target:{old_ap_target} new ap_target:{ap_target} max: {import_limit - houseload_brut}"
         )
     res = [
         (
@@ -1049,7 +1089,6 @@ SENSOR_TYPES_MAIN: list[SolaXA1J1ModbusSensorEntityDescription] = [
 
 @dataclass
 class solax_a1j1_plugin(plugin_base):
-
     def isAwake(self, datadict):
         """determine if inverter is awake based on polled datadict"""
         return datadict.get("run_mode", None) == "Normal Mode"
@@ -1170,7 +1209,7 @@ plugin_instance = solax_a1j1_plugin(
     SELECT_TYPES=SELECT_TYPES,
     SWITCH_TYPES=[],
     block_size=100,
-    #order16=Endian.BIG,
+    # order16=Endian.BIG,
     order32="little",
     auto_block_ignore_readerror=True,
 )

@@ -1,23 +1,23 @@
 import logging
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntityDescription,
-    SensorStateClass,
-)
+import pathlib
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
+from typing import Optional
+
+from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.components.number import (
     NumberDeviceClass,
     NumberEntityDescription,
 )
 from homeassistant.components.select import SelectEntityDescription
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.components.switch import SwitchEntityDescription
-from homeassistant.components.button import ButtonEntityDescription
-from homeassistant.helpers.entity import EntityCategory
-from datetime import datetime, timedelta
-from dataclasses import dataclass, replace
-from typing import Optional
-import pathlib
-
 from homeassistant.const import (
+    CONF_SCAN_INTERVAL,
     PERCENTAGE,
     UnitOfApparentPower,
     UnitOfElectricCurrent,
@@ -27,18 +27,21 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfTemperature,
     UnitOfTime,
-    CONF_SCAN_INTERVAL,
 )
+from homeassistant.helpers.entity import EntityCategory
 
+# TODO: Review if this fallback is still needed.
+# UnitOfReactivePower was added in HA 2023.1 (Jan 2023). This fallback supports
+# HA versions older than 2023.1. Consider adding a minimum HA version to manifest.json
+# and removing this fallback if older versions are no longer supported.
+# See: https://developers.home-assistant.io/blog/2022/12/05/more-unit-enumerators
 try:
     from homeassistant.const import (
         UnitOfReactivePower,
-    )  ## some changes maybe revert on update of hass
+    )
 except ImportError:
-    # NOTE:fallback for older homeassistant installation
-    #      likely to be removed in future version
-
     from enum import StrEnum
+
     from homeassistant.const import POWER_VOLT_AMPERE_REACTIVE
 
     class UnitOfReactivePower(StrEnum):
@@ -71,6 +74,8 @@ CONF_BAUDRATE = "baudrate"
 CONF_PLUGIN = "plugin"
 CONF_READ_BATTERY = "read_battery"
 CONF_CORE_HUB = "read_core_hub"
+CONF_ENERGY_DASHBOARD_DEVICE = "energy_dashboard_device"
+CONF_DEBUG_SETTINGS = "debug_settings"
 ATTR_MANUFACTURER = "SolaX Power"
 DEFAULT_INTERFACE = "tcp"
 DEFAULT_SERIAL_PORT = "/dev/ttyUSB0"
@@ -80,6 +85,9 @@ DEFAULT_READ_PM = False
 DEFAULT_BAUDRATE = "19200"
 DEFAULT_PLUGIN = "solax"
 DEFAULT_READ_BATTERY = False
+ENERGY_DASHBOARD_DEVICE_ENABLED = True
+ENERGY_DASHBOARD_DEVICE_DISABLED = False
+DEFAULT_ENERGY_DASHBOARD_DEVICE = ENERGY_DASHBOARD_DEVICE_ENABLED
 PLUGIN_PATH = f"{pathlib.Path(__file__).parent.absolute()}/plugin_*.py"
 SLEEPMODE_NONE = None
 SLEEPMODE_ZERO = 0  # when no communication at all
@@ -98,8 +106,8 @@ DEFAULT_TIME_OUT = 5
 
 # ================================= Button autorepeat initval codes for button value_functions ==========================
 BUTTONREPEAT_FIRST = 0  # first manual trigger click
-BUTTONREPEAT_LOOP  = 1  # automated loop
-BUTTONREPEAT_POST = -1 # final call after autoduration expired - no action needed in most cases
+BUTTONREPEAT_LOOP = 1  # automated loop
+BUTTONREPEAT_POST = -1  # final call after autoduration expired - no action needed in most cases
 
 # ================================= Definitions for Sensor Declarations =================================================
 
@@ -149,13 +157,13 @@ class plugin_base:
     auto_block_ignore_readerror: bool | None = (
         None  # if True or False, inserts a ignore_readerror statement for each block
     )
-    #order16: str | None = None # ignored since 2025.09 - assuming "big" for all plugins
-    order32: str | None = None # "big" or "little" - used to be Endian.BIG or Endian.LITTLE
+    # order16: str | None = None # ignored since 2025.09 - assuming "big" for all plugins
+    order32: str | None = None  # "big" or "little" - used to be Endian.BIG or Endian.LITTLE
     inverter_model: str = None
-    default_holding_scangroup: str = SCAN_GROUP_DEFAULT  
-    default_input_scangroup: str = SCAN_GROUP_DEFAULT   # or SCAN_GROUP_AUTO
-    auto_default_scangroup: str = SCAN_GROUP_FAST # only used when default_xxx_scangroup is set to SCAN_GROUP_AUTO
-    auto_slow_scangroup: str = SCAN_GROUP_MEDIUM # only usedwhen default_xxx_scangroup is set to SCAN_GROUP_AUTO
+    default_holding_scangroup: str = SCAN_GROUP_DEFAULT
+    default_input_scangroup: str = SCAN_GROUP_DEFAULT  # or SCAN_GROUP_AUTO
+    auto_default_scangroup: str = SCAN_GROUP_FAST  # only used when default_xxx_scangroup is set to SCAN_GROUP_AUTO
+    auto_slow_scangroup: str = SCAN_GROUP_MEDIUM  # only usedwhen default_xxx_scangroup is set to SCAN_GROUP_AUTO
 
     def isAwake(self, datadict):
         return True  # always awake by default
@@ -208,7 +216,7 @@ class BaseModbusSensorEntityDescription(SensorEntityDescription):
     value_function: callable = None  #  value = function(initval, descr, datadict)
     wordcount: int = None  # only for unit = REGISTER_STR and REGISTER_WORDS
     sleepmode: int = SLEEPMODE_LAST  # or SLEEPMODE_ZERO, SLEEPMODE_NONE or SLEEPMODE_LASTAWAKE
-    ignore_readerror: bool = False  # not strictly boolean: boolean or static other value 
+    ignore_readerror: bool = False  # not strictly boolean: boolean or static other value
     # if False, read errors will invalidate the data
     # if True, data will remain untouched
     # if not False nor True (e.g. a number): ignore read errors for this block and return this static value
@@ -221,7 +229,8 @@ class BaseModbusSensorEntityDescription(SensorEntityDescription):
     # The name and key must contain a placeholder {} that is replaced by the preceding number
     min_value: int = None
     max_value: int = None
-    depends_on: list = None # list of modbus register keys that must be read
+    depends_on: list = None  # list of modbus register keys that must be read
+
 
 @dataclass
 class BaseModbusButtonEntityDescription(ButtonEntityDescription):
@@ -245,10 +254,11 @@ class BaseModbusSelectEntityDescription(SelectEntityDescription):
     write_method: int = WRITE_SINGLE_MODBUS  # WRITE_SINGLE_MOBUS or WRITE_MULTI_MODBUS or WRITE_DATA_LOCAL
     initvalue: int = None  # initial default value for WRITE_DATA_LOCAL entities
     unit: int = None  #  optional for WRITE_DATA_LOCAL e.g REGISTER_U16, REGISTER_S32 ...
-    sensor_key: str = None # specify only when corresponding sensor has a different key name
-    depends_on: list = None # list of modbus register keys that must be read
+    sensor_key: str = None  # specify only when corresponding sensor has a different key name
+    depends_on: list = None  # list of modbus register keys that must be read
     value_function: callable = None  # value function for autorepeat (same pattern as buttons)
     autorepeat: bool = False  # if True: select will use value_function for autorepeat
+
 
 @dataclass
 class BaseModbusSwitchEntityDescription(SwitchEntityDescription):
@@ -260,7 +270,8 @@ class BaseModbusSwitchEntityDescription(SwitchEntityDescription):
     initvalue: int = None  # initial default value for WRITE_DATA_LOCAL entities
     sensor_key: str = None  # The associated sensor key
     value_function: callable = None  # Value function used to determine the new sensor value when the switch changes
-    depends_on: list = None # list of modbus register keys that must be read
+    depends_on: list = None  # list of modbus register keys that must be read
+
 
 @dataclass
 class BaseModbusNumberEntityDescription(NumberEntityDescription):
@@ -271,17 +282,19 @@ class BaseModbusNumberEntityDescription(NumberEntityDescription):
     fmt: str = None
     scale: float = 1
     state: str = None
-    max_exceptions: list = None  #  None or list with structue [ ('U50EC' , 40,) ]
+    max_exceptions: list = None  #  None or list with structure [ ('U50EC' , 40,) ]
     min_exceptions_minus: list = None  # same structure as max_exceptions, values are applied with a minus
     blacklist: list = None  # None or list of serial number prefixes like
     write_method: int = WRITE_SINGLE_MODBUS  # WRITE_SINGLE_MOBUS or WRITE_MULTI_MODBUS or WRITE_DATA_LOCAL
     initvalue: int = None  # initial default value for WRITE_DATA_LOCAL entities
     unit: int = None  #  optional for WRITE_DATA_LOCAL e.g REGISTER_U16, REGISTER_S32 ...
     prevent_update: bool = False  # if set to True, value will not be re-read/updated with each polling cycle;
-                                  # update only when read value changes
-    sensor_key: str = None # only specify this if corresponding sensor has a different key name
-    depends_on: list = None # list of modbus register keys that must be read
+    # update only when read value changes
+    sensor_key: str = None  # only specify this if corresponding sensor has a different key name
+    depends_on: list = None  # list of modbus register keys that must be read
+    display_as_box: bool = False  # if true, displays the entity as a box rather than a slider.
     suggested_display_precision: Optional[int] = None
+
 
 # ========================= autorepeat aux functions to be used on hub.data dictionary ===============================
 
@@ -293,8 +306,10 @@ def autorepeat_set(datadict, entitykey, value):
 def autorepeat_stop(datadict, entitykey):
     datadict["_repeatUntil"][entitykey] = 0
 
+
 def autorepeat_stop_with_postaction(datadict, entitykey):
     datadict["_repeatUntil"][entitykey] = 1
+
 
 def autorepeat_remaining(datadict, entitykey, timestamp):
     remaining = datadict["_repeatUntil"].get(entitykey, 0) - timestamp
@@ -305,17 +320,21 @@ def autorepeat_remaining(datadict, entitykey, timestamp):
 
 
 MAX_PVSTRINGS = 10
-def value_function_pv_power_total(initval, descr, datadict): 
-    # changed: for performance reasons, we should not iterate over the entire datadict every polling cyle (contains hundreds ...)
+
+
+def value_function_pv_power_total(initval, descr, datadict):
+    # changed: for performance reasons, we should not iterate over the entire datadict every polling cycle (contains hundreds ...)
     total = 0
     i = 1
     while i <= MAX_PVSTRINGS:
         v = datadict.get(f"pv_power_{i}", None)
         if v is None:
             break
-        else: total += v 
+        else:
+            total += v
         i += 1
     return total
+
 
 def value_function_battery_output(initval, descr, datadict):
     val = datadict.get("battery_power_charge", 0)
@@ -350,12 +369,21 @@ def value_function_battery_input_solis(initval, descr, datadict):
     else:
         return 0
 
+
 def value_function_disabled_enabled(initval, descr, datadict):
     scale = {
         0: "Disabled",
         1: "Enabled",
     }
     return scale.get(initval, str(initval) + " Unknown Status")
+
+
+def value_function_gain_offset(initval, descr, datadict):
+    # Simple offset (unit) and gain (%) calibration of the measured power
+    offset = datadict.get(descr.key + "_offset", 0)
+    gain = datadict.get(descr.key + "_gain", 100)
+    return (initval + offset) * (gain / 100.0)
+
 
 def value_function_grid_import(initval, descr, datadict):
     val = datadict.get("measured_power", 0)
@@ -448,7 +476,7 @@ def value_function_rtc(initval, descr, datadict):
             rtc_months,
             rtc_years,
         ) = initval
-        val = f"{rtc_days:02}/{rtc_months:02}/{rtc_years%100:02} {rtc_hours:02}:{rtc_minutes:02}:{rtc_seconds:02}"
+        val = f"{rtc_days:02}/{rtc_months:02}/{rtc_years % 100:02} {rtc_hours:02}:{rtc_minutes:02}:{rtc_seconds:02}"
         return datetime.strptime(val, "%d/%m/%y %H:%M:%S")  # ok since sensor.py has been adapted
     except:
         pass
@@ -464,7 +492,7 @@ def value_function_rtc_ymd(initval, descr, datadict):
             rtc_minutes,
             rtc_seconds,
         ) = initval
-        val = f"{rtc_days:02}/{rtc_months:02}/{rtc_years%100:02} {rtc_hours:02}:{rtc_minutes:02}:{rtc_seconds:02}"
+        val = f"{rtc_days:02}/{rtc_months:02}/{rtc_years % 100:02} {rtc_hours:02}:{rtc_minutes:02}:{rtc_seconds:02}"
         return datetime.strptime(val, "%d/%m/%y %H:%M:%S")  # ok since sensor.py has been adapted
     except:
         pass
@@ -494,6 +522,14 @@ def value_function_firmware(initval, descr, datadict):
     m = initval % 256
     h = initval >> 8
     return f"{h}.{m:02d}"
+
+
+def value_function_firmware_decimal_hundredths(initval, descr, datadict):
+    # Decode firmware value expressed as integer hundredths (e.g. 611 -> 6.11).
+    try:
+        return f"{initval / 100:.2f}"
+    except Exception:
+        return initval
 
 
 def value_function_2byte_timestamp(initval, descr, datadict):
@@ -537,8 +573,8 @@ for h in range(0, 24):
             0,
             0,
         ):  # add extra entry 00:01
-            TIME_OPTIONS[1 * 256 + h] = f"{h:02}:{m+1:02}"
-            TIME_OPTIONS_GEN4[h * 256 + 1] = f"{h:02}:{m+1:02}"
+            TIME_OPTIONS[1 * 256 + h] = f"{h:02}:{m + 1:02}"
+            TIME_OPTIONS_GEN4[h * 256 + 1] = f"{h:02}:{m + 1:02}"
         if (
             h,
             m,
@@ -546,5 +582,5 @@ for h in range(0, 24):
             23,
             55,
         ):  # add extra entry 23:59
-            TIME_OPTIONS[(m + 4) * 256 + h] = f"{h:02}:{m+4:02}"
-            TIME_OPTIONS_GEN4[h * 256 + m + 4] = f"{h:02}:{m+4:02}"
+            TIME_OPTIONS[(m + 4) * 256 + h] = f"{h:02}:{m + 4:02}"
+            TIME_OPTIONS_GEN4[h * 256 + m + 4] = f"{h:02}:{m + 4:02}"
